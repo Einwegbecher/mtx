@@ -82,6 +82,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SYNAPSE_SHARED_SECRET: ${SYNAPSE_SHARED_SECRET}
       UID: 1000
       GID: 1000
     volumes:
@@ -135,6 +136,11 @@ services:
       ELEMENT_X_BRAND: "Element X"
       ELEMENT_X_BRANDING: '{"welcomeBackgroundUrl": "", "authHeaderLogoUrl": ""}'
       ELEMENT_X_FEATURES: '{"feature_voice_and_video": true, "feature_screen_sharing": true}'
+      # LiveKit RTC configuration
+      ELEMENT_X_RTC_BACKEND: "livekit"
+      ELEMENT_X_LIVEKIT_SERVER: "ws://${MATRIX_DOMAIN}:7881"
+      ELEMENT_X_LIVEKIT_KEY: ${LIVEKIT_KEY}
+      ELEMENT_X_LIVEKIT_SECRET: ${LIVEKIT_SECRET}
     volumes:
       - ./element/config:/config
       - ./element/data:/data
@@ -169,6 +175,8 @@ services:
       synapse:
         condition: service_healthy
       element-x:
+        condition: service_healthy
+      livekit:
         condition: service_healthy
     ports:
       - "${NGINX_PORT}:80"
@@ -212,7 +220,7 @@ services:
       TURN_LISTENING_IP: 0.0.0.0
       TURN_EXTERNAL_IP: ${MATRIX_DOMAIN}
       TURN_REALM: ${MATRIX_DOMAIN}
-      TURN_AUTH_SECRET: your_turn_auth_secret_here
+      TURN_AUTH_SECRET: ${TURN_AUTH_SECRET}
       TURN_USER_QUOTA: 12
       TURN_TOTAL_QUOTA: 1200
       TURN_MAX_BPS: 10000000
@@ -232,6 +240,88 @@ services:
           memory: 256M
           cpus: '0.5'
 
+  # LiveKit Server for Element Call (Alternative RTC backend)
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: matrix-livekit
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEY: ${LIVEKIT_KEY}
+      LIVEKIT_SECRET: ${LIVEKIT_SECRET}
+      LIVEKIT_HOST: ${MATRIX_DOMAIN}
+      LIVEKIT_PORT: 7880
+      LIVEKIT_WS_HOST: ${MATRIX_DOMAIN}
+      LIVEKIT_WS_PORT: 7881
+      LIVEKIT_RTC_HOST: ${MATRIX_DOMAIN}
+      LIVEKIT_RTC_PORT: 7882
+      LIVEKIT_TURN_HOST: ${MATRIX_DOMAIN}
+      LIVEKIT_TURN_PORT: 3478
+      LIVEKIT_TURN_USERNAME: ${MATRIX_DOMAIN}
+      LIVEKIT_TURN_PASSWORD: ${TURN_AUTH_SECRET}
+    ports:
+      - "7880:7880"   # HTTP API
+      - "7881:7881"   # WebSocket
+      - "7882:7882"   # RTC (UDP)
+      - "7882:7882/udp" # RTC (UDP)
+    volumes:
+      - ./livekit/config:/config
+      - ./livekit/data:/data
+    networks:
+      - ${DOCKER_NETWORK}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7880/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # Matrix RTC Bridge (for Synapse RTC support)
+  matrix-rtc:
+    image: matrixdotorg/matrix-rtc:latest
+    container_name: matrix-rtc
+    restart: unless-stopped
+    environment:
+      SYNAPSE_SERVER: http://synapse:8008
+      SYNAPSE_SHARED_SECRET: ${SYNAPSE_SHARED_SECRET}
+      TURN_SERVER: turn:${MATRIX_DOMAIN}:3478
+      TURN_SHARED_SECRET: ${TURN_AUTH_SECRET}
+      LIVEKIT_SERVER: ws://livekit:7881
+      LIVEKIT_KEY: ${LIVEKIT_KEY}
+      LIVEKIT_SECRET: ${LIVEKIT_SECRET}
+    depends_on:
+      synapse:
+        condition: service_healthy
+      coturn:
+        condition: service_started
+      livekit:
+        condition: service_healthy
+    networks:
+      - ${DOCKER_NETWORK}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
 networks:
   ${DOCKER_NETWORK}:
     driver: bridge
@@ -245,3 +335,4 @@ volumes:
   synapse_uploads:
   nginx_logs:
   coturn_logs:
+  livekit_data:

@@ -42,8 +42,19 @@
       "enabled": true,
       "uris": ["turn:${MATRIX_DOMAIN}:3478"],
       "username": "${MATRIX_DOMAIN}",
-      "password": "your_turn_auth_secret_here",
+      "password": "${TURN_AUTH_SECRET}",
       "ttl": 3600
+    },
+    "rtc_backend": "livekit",
+    "livekit": {
+      "enabled": true,
+      "server": "ws://${MATRIX_DOMAIN}:7881",
+      "key": "${LIVEKIT_KEY}",
+      "secret": "${LIVEKIT_SECRET}",
+      "use_turn": true,
+      "turn_server": "turn:${MATRIX_DOMAIN}:3478",
+      "turn_username": "${MATRIX_DOMAIN}",
+      "turn_password": "${TURN_AUTH_SECRET}"
     }
   },
   "registration": {
@@ -137,5 +148,20 @@
     "msc2858_sliding_sync": false,
     "msc3202_sliding_sync": false,
     "msc3958_sliding_sync": false
+  },
+  "rtc": {
+    "enabled": true,
+    "backend": "livekit",
+    "livekit": {
+      "server": "ws://${MATRIX_DOMAIN}:7881",
+      "key": "${LIVEKIT_KEY}",
+      "secret": "${LIVEKIT_SECRET}"
+    },
+    "turn": {
+      "enabled": true,
+      "uris": ["turn:${MATRIX_DOMAIN}:3478"],
+      "username": "${MATRIX_DOMAIN}",
+      "password": "${TURN_AUTH_SECRET}"
+    }
   }
 }

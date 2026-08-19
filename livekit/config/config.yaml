@@ -1,0 +1,98 @@
+# LiveKit Server Configuration for Matrix Element Call
+# This configuration enables LiveKit as an alternative RTC backend for Element X
+
+# Server configuration
+server:
+  host: ${MATRIX_DOMAIN}
+  port: 7880
+  
+# WebSocket configuration
+websocket:
+  host: ${MATRIX_DOMAIN}
+  port: 7881
+
+# RTC configuration (WebRTC)
+rtc:
+  host: ${MATRIX_DOMAIN}
+  port: 7882
+  
+  # ICE servers configuration
+  ice_servers:
+    - urls: ["stun:${MATRIX_DOMAIN}:3478"]
+    - urls: ["turn:${MATRIX_DOMAIN}:3478"]
+      username: ${MATRIX_DOMAIN}
+      credential: ${TURN_AUTH_SECRET}
+      credential_type: password
+
+# Authentication keys
+keys:
+  ${LIVEKIT_KEY}: ${LIVEKIT_SECRET}
+
+# Room configuration
+room:
+  max_participants: 50
+  empty_timeout: 300  # 5 minutes
+  max_idle_duration: 3600  # 1 hour
+
+# Webhook configuration (optional)
+webhook:
+  enabled: false
+  url: ""
+  api_key: ""
+  events:
+    - room_created
+    - room_ended
+    - participant_joined
+    - participant_left
+
+# Logging configuration
+logging:
+  level: info
+  format: json
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 7883
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  port: 7884
+
+# TURN server configuration (inherited from CoTurn)
+turn:
+  enabled: true
+  host: ${MATRIX_DOMAIN}
+  port: 3478
+  username: ${MATRIX_DOMAIN}
+  credential: ${TURN_AUTH_SECRET}
+
+# Egress configuration (for recording)
+egress:
+  enabled: false
+  
+# Ingress configuration (for streaming in)
+ingress:
+  enabled: false
+
+# SIP configuration (optional)
+sip:
+  enabled: false
+
+# Recording configuration
+recording:
+  enabled: false
+  directory: /data/recordings
+  
+# Storage configuration
+storage:
+  type: file
+  directory: /data
+
+# Redis configuration (optional for scaling)
+redis:
+  enabled: false
+  address: redis:6379
+  password: ${REDIS_PASSWORD}
+  db: 2

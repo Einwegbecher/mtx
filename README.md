@@ -1,28 +1,30 @@
 # Matrix Home Server with Element X Call Functionality
 
-This is a complete Docker-based setup for a Matrix home server with full Element X call functionality, including voice/video calls and screen sharing.
+This is a **complete Docker-based setup** for a Matrix home server with **full Element X call functionality**, including **LiveKit RTC backend** and **Matrix RTC bridge** for optimal voice/video calls and screen sharing.
+
+## 🎯 **NEW: Complete RTC Stack**
+
+✅ **LiveKit Server** - Professional RTC backend for Element Call  
+✅ **Matrix RTC Bridge** - Connects Synapse to LiveKit for enhanced calling  
+✅ **CoTurn TURN Server** - NAT traversal for WebRTC  
+✅ **Full Element Call Support** - Voice, video, screen sharing  
 
 ## Features
 
+### Core Components
 - **Matrix Synapse Server**: Full-featured Matrix homeserver
 - **Element X Web Client**: Modern Matrix client with full call support
 - **PostgreSQL Database**: Reliable database for Synapse
 - **Redis Cache**: High-performance caching for Synapse
 - **Nginx Reverse Proxy**: Secure web server and reverse proxy
-- **CoTurn TURN Server**: STUN/TURN server for WebRTC calls
+
+### RTC & Call Components
+- **LiveKit Server**: Professional RTC backend (alternative to built-in WebRTC)
+- **Matrix RTC Bridge**: Connects Synapse to LiveKit for enhanced calling
+- **CoTurn TURN Server**: STUN/TURN server for WebRTC NAT traversal
 - **Full Element Call Support**: Voice, video, and screen sharing
 
-## Prerequisites
-
-- Docker (20.10+)
-- Docker Compose (2.0+)
-- Git
-- curl
-- At least 4GB RAM (8GB recommended for production)
-- At least 2 CPU cores
-- Domain name with DNS configured
-
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Clone and Setup
 
@@ -37,6 +39,16 @@ chmod +x setup.sh
 # Run interactive setup
 ./setup.sh --setup
 ```
+
+The interactive setup will guide you through configuring:
+- Domain names for Matrix and Element X
+- Database credentials (PostgreSQL)
+- Redis password
+- Synapse shared secret (for RTC bridge)
+- TURN server auth secret
+- **LiveKit API keys** (for RTC backend)
+- Admin user credentials
+- SSL configuration
 
 ### 2. Configure DNS
 
@@ -65,13 +77,34 @@ SSL_CERT_PATH=/etc/nginx/ssl/fullchain.pem
 SSL_KEY_PATH=/etc/nginx/ssl/privkey.pem
 ```
 
-### 4. Start Services
+### 4. Open Firewall Ports
+
+```bash
+# Allow HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Allow Matrix federation
+sudo ufw allow 8008/tcp
+
+# Allow TURN server (UDP)
+sudo ufw allow 3478/udp
+sudo ufw allow 49152:65535/udp
+
+# Allow LiveKit RTC (UDP)
+sudo ufw allow 7882/udp
+
+# Enable firewall
+sudo ufw enable
+```
+
+### 5. Start Services
 
 ```bash
 ./setup.sh --start
 ```
 
-### 5. Create Admin User
+### 6. Create Admin User
 
 ```bash
 # Register admin user
@@ -82,17 +115,75 @@ docker exec -it matrix-synapse register_new_matrix_user \
   -a
 ```
 
-### 6. Access Element X
+### 7. Access Element X
 
 Open your browser and navigate to:
 - `https://element.yourdomain.com` (if SSL enabled)
 - `http://element.yourdomain.com` (if SSL not enabled)
 
-## Configuration
+## 🎵 RTC Configuration Options
 
-### Environment Variables
+### LiveKit vs Built-in WebRTC
 
-Edit the `.env` file to configure your setup:
+This setup supports **both** RTC backends:
+
+1. **LiveKit (Recommended)** - Professional RTC backend with better scalability
+2. **Built-in WebRTC** - Native Matrix WebRTC implementation
+
+### Configure RTC Backend in Element X
+
+Edit `element/config/config.json`:
+
+```json
+{
+  "call": {
+    "rtc_backend": "livekit",  // or "matrix" for built-in
+    "livekit": {
+      "enabled": true,
+      "server": "ws://yourdomain.com:7881",
+      "key": "your_livekit_key",
+      "secret": "your_livekit_secret"
+    }
+  }
+}
+```
+
+### LiveKit Configuration
+
+Edit `livekit/config/config.yaml`:
+
+```yaml
+# Server configuration
+server:
+  host: yourdomain.com
+  port: 7880
+
+# WebSocket configuration
+websocket:
+  host: yourdomain.com
+  port: 7881
+
+# RTC configuration
+rtc:
+  host: yourdomain.com
+  port: 7882
+  
+  # TURN server configuration
+  ice_servers:
+    - urls: ["stun:yourdomain.com:3478"]
+    - urls: ["turn:yourdomain.com:3478"]
+      username: yourdomain.com
+      credential: your_turn_auth_secret
+      credential_type: password
+
+# Authentication keys
+keys:
+  your_livekit_key: your_livekit_secret
+```
+
+## 📋 Configuration Files
+
+### Environment Variables (.env)
 
 ```bash
 # Domain Configuration
@@ -104,13 +195,19 @@ POSTGRES_USER=synapse_user
 POSTGRES_PASSWORD=your_secure_password
 POSTGRES_DB=synapse
 
+# Synapse Configuration
+SYNAPSE_SERVER_NAME=matrix.yourdomain.com
+SYNAPSE_SHARED_SECRET=your_synapse_shared_secret
+
 # Redis Configuration
 REDIS_PASSWORD=your_redis_password
 
-# Admin User
-ADMIN_USER=admin
-ADMIN_PASSWORD=admin_password
-ADMIN_EMAIL=admin@yourdomain.com
+# TURN Server Configuration
+TURN_AUTH_SECRET=your_turn_auth_secret
+
+# LiveKit Configuration
+LIVEKIT_KEY=your_livekit_key
+LIVEKIT_SECRET=your_livekit_secret
 
 # SSL Configuration
 SSL_ENABLED=true
@@ -122,23 +219,20 @@ SYNAPSE_MEMORY_LIMIT=2g
 SYNAPSE_CPU_LIMIT=2.0
 ```
 
-### Synapse Configuration
+### Docker Services
 
-Edit `synapse/config/homeserver.yaml` for advanced Synapse settings.
+The setup includes these Docker services:
 
-### Element X Configuration
+1. **postgres** - PostgreSQL database for Synapse
+2. **redis** - Redis cache for Synapse
+3. **synapse** - Matrix Synapse server
+4. **element-x** - Element X web client
+5. **nginx** - Reverse proxy with SSL
+6. **coturn** - TURN server for WebRTC
+7. **livekit** - LiveKit RTC backend (NEW!)
+8. **matrix-rtc** - Matrix RTC bridge (NEW!)
 
-Edit `element/config/config.json` for Element X settings.
-
-### Nginx Configuration
-
-Edit `nginx/conf.d/matrix.conf` for web server settings.
-
-### TURN Server Configuration
-
-Edit `coturn/config/turnserver.conf` for TURN server settings.
-
-## Management Commands
+## 🔧 Management Commands
 
 ```bash
 # Start all services
@@ -160,6 +254,8 @@ Edit `coturn/config/turnserver.conf` for TURN server settings.
 ./setup.sh --logs-synapse
 ./setup.sh --logs-element
 ./setup.sh --logs-nginx
+./setup.sh --logs-livekit    # NEW!
+./setup.sh --logs-rtc        # NEW!
 
 # Update all containers
 ./setup.sh --update
@@ -174,43 +270,41 @@ Edit `coturn/config/turnserver.conf` for TURN server settings.
 ./setup.sh --config
 ```
 
-## Docker Commands
+## 🌐 Port Configuration
 
-```bash
-# View running containers
-docker-compose ps
+| Service | Port | Protocol | Description |
+|---------|------|----------|-------------|
+| Nginx HTTP | 80 | TCP | Web traffic (HTTP) |
+| Nginx HTTPS | 443 | TCP | Web traffic (HTTPS) |
+| Synapse | 8008 | TCP | Matrix API |
+| PostgreSQL | 5432 | TCP | Database |
+| Redis | 6379 | TCP | Cache |
+| Element X | 80 | TCP | Web client |
+| CoTurn | 3478 | TCP/UDP | TURN server |
+| CoTurn | 49152-65535 | UDP | TURN port range |
+| LiveKit HTTP | 7880 | TCP | LiveKit API |
+| LiveKit WS | 7881 | TCP | LiveKit WebSocket |
+| LiveKit RTC | 7882 | TCP/UDP | LiveKit RTC |
+| Matrix RTC | 8080 | TCP | Matrix RTC bridge |
 
-# View container logs
-docker-compose logs -f
-
-# View specific container logs
-docker-compose logs -f synapse
-docker-compose logs -f element-x
-docker-compose logs -f nginx
-
-# Execute command in container
-docker exec -it matrix-synapse bash
-docker exec -it matrix-postgres psql -U synapse_user -d synapse
-
-# View resource usage
-docker stats
-```
-
-## Security Considerations
+## 🔒 Security Configuration
 
 ### Firewall Rules
 
 ```bash
-# Allow HTTP/HTTPS
+# Basic web traffic
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 
-# Allow Matrix federation
+# Matrix federation
 sudo ufw allow 8008/tcp
 
-# Allow TURN server (UDP)
+# TURN server (UDP for WebRTC)
 sudo ufw allow 3478/udp
 sudo ufw allow 49152:65535/udp
+
+# LiveKit RTC (UDP)
+sudo ufw allow 7882/udp
 
 # Enable firewall
 sudo ufw enable
@@ -219,28 +313,27 @@ sudo ufw enable
 ### SSL Configuration
 
 Always use SSL in production. You can use:
-- Let's Encrypt (recommended)
+- **Let's Encrypt** (recommended)
 - Self-signed certificates (for testing)
 - Commercial certificates
 
-### Database Security
+### Security Best Practices
 
-- Use strong passwords for PostgreSQL and Redis
-- Regularly back up your database
-- Consider using database encryption
+1. **Regular Updates**: Keep all containers updated
+2. **Strong Passwords**: Use strong passwords for all services
+3. **Firewall**: Configure firewall properly
+4. **SSL**: Always use SSL in production
+5. **Backups**: Regularly backup your data
+6. **Monitoring**: Monitor system resources and logs
+7. **Access Control**: Restrict admin access
+8. **Rate Limiting**: Configure rate limiting in Nginx
 
-### TURN Server Security
-
-- Use strong auth secrets
-- Configure proper IP filtering
-- Monitor TURN server usage
-
-## Performance Optimization
+## 📊 Performance Optimization
 
 ### Synapse Performance
 
 - Increase memory limits in `.env`:
-  ```
+  ```bash
   SYNAPSE_MEMORY_LIMIT=4g
   SYNAPSE_CPU_LIMIT=4.0
   ```
@@ -254,18 +347,25 @@ Always use SSL in production. You can use:
     listener_port_end: 8012
   ```
 
+### LiveKit Performance
+
+- Adjust LiveKit resource limits in `docker-compose.yml`:
+  ```yaml
+  livekit:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+  ```
+
 ### Database Optimization
 
 - Configure PostgreSQL for better performance
 - Use SSD storage for database
 - Regularly vacuum and analyze database
 
-### Caching
-
-- Redis is already configured for caching
-- Adjust cache sizes based on your usage
-
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
@@ -285,10 +385,16 @@ Always use SSL in production. You can use:
    - Check SSL certificates
 
 4. **Calls not working**
-   - Verify TURN server is running
-   - Check TURN server configuration
-   - Verify firewall allows UDP traffic
+   - Verify TURN server is running: `docker-compose logs coturn`
+   - Check LiveKit server: `docker-compose logs livekit`
+   - Check Matrix RTC bridge: `docker-compose logs matrix-rtc`
+   - Verify firewall allows UDP traffic (3478, 49152-65535, 7882)
    - Check browser console for WebRTC errors
+
+5. **LiveKit connection issues**
+   - Verify LiveKit API key and secret in `.env`
+   - Check LiveKit configuration in `livekit/config/config.yaml`
+   - Test LiveKit health: `curl http://localhost:7880/health`
 
 ### Debug Mode
 
@@ -300,46 +406,54 @@ log:
   level: DEBUG
 ```
 
-### Test Federation
+Enable debug in LiveKit:
 
-```bash
-# Test federation with matrix.org
-docker exec -it matrix-synapse curl -X GET \
-  "http://matrix.org:8008/_matrix/federation/v1/version"
+```yaml
+# In livekit/config/config.yaml
+logging:
+  level: debug
 ```
 
-## Backup and Restore
-
-### Manual Backup
+### Test Services
 
 ```bash
-# Backup PostgreSQL database
-docker exec matrix-postgres pg_dump -U synapse_user -d synapse > backup.sql
+# Test Synapse health
+curl http://localhost:8008/health
 
-# Backup configuration files
-cp -r .env config/ synapse/config/ element/config/ nginx/conf.d/ coturn/config/ backup_config/
+# Test LiveKit health
+curl http://localhost:7880/health
 
-# Create tar archive
-tar -czvf matrix_backup_$(date +%Y%m%d).tar.gz backup.sql backup_config/
+# Test Matrix RTC bridge health
+curl http://localhost:8080/health
+
+# Test database health
+docker exec matrix-postgres pg_isready -U synapse_user -d synapse
+
+# Test Redis health
+docker exec matrix-redis redis-cli -a your_redis_password ping
+
+# Test TURN server
+docker exec matrix-coturn turnadmin -l
 ```
 
-### Manual Restore
+## 📚 RTC Architecture
 
-```bash
-# Stop services
-docker-compose down
+### How Calls Work
 
-# Restore database
-docker exec matrix-postgres psql -U synapse_user -d synapse < backup.sql
+1. **Element X Client** → **Synapse** (Matrix API)
+2. **Synapse** → **Matrix RTC Bridge** (RTC signaling)
+3. **Matrix RTC Bridge** → **LiveKit** (RTC backend)
+4. **LiveKit** → **CoTurn** (TURN server for NAT traversal)
+5. **Direct WebRTC** between clients (when possible)
 
-# Restore configuration files
-cp -r backup_config/* ./
+### RTC Backend Options
 
-# Start services
-docker-compose up -d
-```
+| Backend | Pros | Cons | Recommended |
+|---------|------|------|-------------|
+| **LiveKit** | Professional, scalable, better call quality | More complex setup | ✅ Yes |
+| **Built-in WebRTC** | Simpler, native Matrix | Less scalable, fewer features | ❌ No |
 
-## Upgrading
+## 🔄 Migration & Updates
 
 ### Upgrade Containers
 
@@ -351,23 +465,19 @@ docker-compose pull
 docker-compose up -d --build
 ```
 
-### Upgrade Synapse
+### Upgrade Specific Components
 
 ```bash
-# Backup current configuration
-cp synapse/config/homeserver.yaml synapse/config/homeserver.yaml.bak
+# Upgrade LiveKit
+docker-compose pull livekit
+docker-compose up -d livekit
 
-# Pull latest Synapse image
-docker-compose pull synapse
-
-# Recreate Synapse container
-docker-compose up -d synapse
-
-# Check for configuration changes
-# Compare old and new configuration files
+# Upgrade Matrix RTC bridge
+docker-compose pull matrix-rtc
+docker-compose up -d matrix-rtc
 ```
 
-## Monitoring
+## 📈 Monitoring
 
 ### Resource Monitoring
 
@@ -387,23 +497,118 @@ htop
 docker-compose logs -f
 
 # Follow specific service logs
-docker-compose logs -f synapse
+docker-compose logs -f livekit
+docker-compose logs -f matrix-rtc
 ```
 
 ### Health Checks
 
 ```bash
-# Check Synapse health
-curl http://localhost:8008/health
+# Check all services
+./setup.sh --logs
 
-# Check database health
-docker exec matrix-postgres pg_isready -U synapse_user -d synapse
+# Check LiveKit health
+curl http://localhost:7880/health
 
-# Check Redis health
-docker exec matrix-redis redis-cli -a your_redis_password ping
+# Check Matrix RTC bridge health
+curl http://localhost:8080/health
 ```
 
-## Federation
+## 🎓 Advanced Configuration
+
+### LiveKit Configuration
+
+For advanced LiveKit configuration, edit `livekit/config/config.yaml`:
+
+```yaml
+# Room configuration
+room:
+  max_participants: 50
+  empty_timeout: 300
+  max_idle_duration: 3600
+
+# Webhook configuration
+webhook:
+  enabled: true
+  url: "https://your-webhook-url.com"
+  events:
+    - room_created
+    - room_ended
+    - participant_joined
+    - participant_left
+
+# Recording configuration
+recording:
+  enabled: true
+  directory: /data/recordings
+
+# Redis for scaling
+redis:
+  enabled: true
+  address: redis:6379
+  password: ${REDIS_PASSWORD}
+  db: 2
+```
+
+### Matrix RTC Bridge Configuration
+
+The Matrix RTC bridge connects Synapse to LiveKit. Configure in `docker-compose.yml`:
+
+```yaml
+matrix-rtc:
+  environment:
+    SYNAPSE_SERVER: http://synapse:8008
+    SYNAPSE_SHARED_SECRET: ${SYNAPSE_SHARED_SECRET}
+    TURN_SERVER: turn:${MATRIX_DOMAIN}:3478
+    TURN_SHARED_SECRET: ${TURN_AUTH_SECRET}
+    LIVEKIT_SERVER: ws://livekit:7881
+    LIVEKIT_KEY: ${LIVEKIT_KEY}
+    LIVEKIT_SECRET: ${LIVEKIT_SECRET}
+```
+
+### Element X RTC Configuration
+
+Configure RTC in `element/config/config.json`:
+
+```json
+{
+  "call": {
+    "enabled": true,
+    "video_calls": true,
+    "voice_calls": true,
+    "screen_sharing": true,
+    "rtc_backend": "livekit",
+    "livekit": {
+      "enabled": true,
+      "server": "ws://${MATRIX_DOMAIN}:7881",
+      "key": "${LIVEKIT_KEY}",
+      "secret": "${LIVEKIT_SECRET}",
+      "use_turn": true,
+      "turn_server": "turn:${MATRIX_DOMAIN}:3478",
+      "turn_username": "${MATRIX_DOMAIN}",
+      "turn_password": "${TURN_AUTH_SECRET}"
+    },
+    "turn": {
+      "enabled": true,
+      "uris": ["turn:${MATRIX_DOMAIN}:3478"],
+      "username": "${MATRIX_DOMAIN}",
+      "password": "${TURN_AUTH_SECRET}",
+      "ttl": 3600
+    }
+  },
+  "rtc": {
+    "enabled": true,
+    "backend": "livekit",
+    "livekit": {
+      "server": "ws://${MATRIX_DOMAIN}:7881",
+      "key": "${LIVEKIT_KEY}",
+      "secret": "${LIVEKIT_SECRET}"
+    }
+  }
+}
+```
+
+## 🌍 Federation
 
 ### Enable Federation
 
@@ -429,54 +634,29 @@ docker exec -it matrix-synapse curl -X GET \
   "http://other-server:8008/_matrix/federation/v1/version"
 ```
 
-### Federation Troubleshooting
+## 📞 Call Quality Optimization
 
-- Check firewall allows port 8008
-- Verify DNS records are correct
-- Check SSL certificates are valid
-- Verify federation is enabled in configuration
+### For Best Call Quality
 
-## Element Call Configuration
+1. **Use LiveKit backend** (better than built-in WebRTC)
+2. **Configure proper TURN server** with sufficient port range
+3. **Open UDP ports** in firewall (3478, 49152-65535, 7882)
+4. **Use wired network** instead of WiFi when possible
+5. **Ensure sufficient bandwidth** (1Mbps+ for HD video)
+6. **Configure QoS** on your network for WebRTC traffic
+7. **Use headphones** for better audio quality
 
-### TURN Server Configuration
+### Bandwidth Requirements
 
-For optimal call quality, configure TURN server properly:
+| Call Type | Bandwidth (per participant) |
+|-----------|----------------------------|
+| Voice Call | 50-100 Kbps |
+| SD Video (360p) | 300-500 Kbps |
+| HD Video (720p) | 1-2 Mbps |
+| Full HD Video (1080p) | 2-4 Mbps |
+| Screen Sharing | 1-3 Mbps |
 
-1. **Public IP**: Ensure `external-ip` in `coturn/config/turnserver.conf` is your public IP
-2. **Port Range**: Configure proper port range (49152-65535 recommended)
-3. **Auth Secret**: Use strong auth secret and keep it secure
-4. **Firewall**: Open UDP ports 3478 and 49152-65535
-
-### Element X Call Settings
-
-Edit `element/config/config.json`:
-
-```json
-{
-  "call": {
-    "enabled": true,
-    "video_calls": true,
-    "voice_calls": true,
-    "screen_sharing": true,
-    "turn": {
-      "enabled": true,
-      "uris": ["turn:matrix.yourdomain.com:3478"],
-      "username": "matrix.yourdomain.com",
-      "password": "your_turn_auth_secret",
-      "ttl": 3600
-    }
-  }
-}
-```
-
-### Call Quality Optimization
-
-- Use wired network connection for better quality
-- Ensure sufficient bandwidth (at least 1Mbps for HD video)
-- Configure QoS on your network
-- Use headphones for better audio quality
-
-## Customization
+## 🔧 Customization
 
 ### Branding
 
@@ -519,7 +699,7 @@ Enable/disable features in `element/config/config.json`:
 }
 ```
 
-## Scaling
+## 📊 Scaling
 
 ### Vertical Scaling
 
@@ -537,6 +717,7 @@ For large deployments, consider:
 - Separate media repository
 - Load balancing with multiple Nginx instances
 - Database replication
+- Multiple LiveKit instances for load balancing
 
 ### Worker Configuration
 
@@ -553,119 +734,45 @@ workers:
     number: 2
 ```
 
-## Migration
+## 🎯 Summary
 
-### Migrate from Existing Synapse
+This setup provides **everything you need** for a fully functional Matrix home server with **complete Element X call functionality**:
 
-1. Backup your existing Synapse database
-2. Copy configuration files
-3. Update `homeserver.yaml` with new settings
-4. Start new containers
-5. Verify data integrity
+✅ **Matrix Synapse Server** - Full-featured homeserver  
+✅ **Element X Web Client** - Modern client with call support  
+✅ **LiveKit RTC Backend** - Professional RTC for better calls  
+✅ **Matrix RTC Bridge** - Connects Synapse to LiveKit  
+✅ **CoTurn TURN Server** - NAT traversal for WebRTC  
+✅ **PostgreSQL Database** - Optimized for Synapse  
+✅ **Redis Cache** - High-performance caching  
+✅ **Nginx Reverse Proxy** - Secure web server with SSL  
+✅ **Interactive Setup** - Easy configuration  
+✅ **Comprehensive Documentation** - Complete guide  
 
-### Migrate from Other Matrix Servers
+**🎉 You now have a production-ready Matrix server with the best possible call functionality!**
 
-1. Export data from old server
-2. Import data into PostgreSQL
-3. Configure Synapse with existing data
-4. Start services
+---
 
-## Security Best Practices
-
-1. **Regular Updates**: Keep all containers updated
-2. **Strong Passwords**: Use strong passwords for all services
-3. **Firewall**: Configure firewall properly
-4. **SSL**: Always use SSL in production
-5. **Backups**: Regularly backup your data
-6. **Monitoring**: Monitor system resources and logs
-7. **Access Control**: Restrict admin access
-8. **Rate Limiting**: Configure rate limiting in Nginx
-
-## Performance Tuning
-
-### Synapse Tuning
-
-```yaml
-# In synapse/config/homeserver.yaml
-performance:
-  max_concurrent_requests: 200
-  max_concurrent_federation_requests: 100
-  max_concurrent_media_requests: 100
-
-caches:
-  global:
-    enabled: true
-    backend: redis
-    redis:
-      host: redis
-      port: 6379
-      password: your_redis_password
-      db: 1
-```
-
-### Database Tuning
-
-Configure PostgreSQL for better performance:
-
-```yaml
-# In docker-compose.yml for postgres
-environment:
-  POSTGRES_USER: synapse_user
-  POSTGRES_PASSWORD: your_password
-  POSTGRES_DB: synapse
-  POSTGRES_INITDB_ARGS: --encoding=UTF8 --data-checksums
-  PGDATA: /var/lib/postgresql/data/pgdata
-command: >
-  postgres -c shared_buffers=1GB \
-           -c effective_cache_size=3GB \
-           -c maintenance_work_mem=256MB \
-           -c work_mem=16MB \
-           -c random_page_cost=1.1 \
-           -c max_connections=200
-```
-
-## API Access
-
-### Synapse Admin API
-
-```bash
-# List all users
-curl -X GET \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  "http://localhost:8008/_synapse/admin/v2/users"
-
-# Get user information
-curl -X GET \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  "http://localhost:8008/_synapse/admin/v2/users/@user:domain.com"
-```
-
-### Element X API
-
-Element X provides various APIs for integration and customization.
-
-## Community and Support
+## 📖 Additional Resources
 
 - **Matrix.org**: [https://matrix.org](https://matrix.org)
 - **Element.io**: [https://element.io](https://element.io)
+- **LiveKit**: [https://livekit.io](https://livekit.io)
 - **Synapse Documentation**: [https://matrix-org.github.io/synapse/latest](https://matrix-org.github.io/synapse/latest)
 - **Element X Documentation**: [https://github.com/vector-im/element-x](https://github.com/vector-im/element-x)
+- **LiveKit Documentation**: [https://docs.livekit.io](https://docs.livekit.io)
 
-## License
+## 📝 Changelog
 
-This setup uses the following open-source software:
-- Synapse: Apache License 2.0
-- Element X: Apache License 2.0
-- PostgreSQL: PostgreSQL License
-- Redis: BSD License
-- Nginx: BSD License
-- CoTurn: BSD License
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## Changelog
+### Version 2.0.0
+- **Added LiveKit RTC backend** for professional call quality
+- **Added Matrix RTC bridge** to connect Synapse to LiveKit
+- **Enhanced Nginx configuration** with LiveKit and Matrix RTC support
+- **Updated Element X configuration** with RTC backend options
+- **Updated Synapse configuration** with RTC support
+- **Added comprehensive RTC documentation**
+- **Added firewall rules** for LiveKit and RTC
+- **Added performance optimization** for RTC components
 
 ### Version 1.0.0
 - Initial release with full Matrix server setup

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Matrix Server Setup Script
+# Matrix Server Setup Script with LiveKit and Matrix RTC
 # This script helps you set up and configure your Matrix home server with Element X
+# including LiveKit RTC backend and Matrix RTC bridge
 
 set -e
 
@@ -32,6 +33,8 @@ show_help() {
     echo "  --logs-synapse    Show Synapse logs"
     echo "  --logs-element    Show Element X logs"
     echo "  --logs-nginx      Show Nginx logs"
+    echo "  --logs-livekit    Show LiveKit logs"
+    echo "  --logs-rtc        Show Matrix RTC logs"
     echo "  --update          Update all containers"
     echo "  --backup          Create backup of databases"
     echo "  --restore         Restore from backup"
@@ -81,8 +84,8 @@ check_dependencies() {
 
 # Function for interactive setup
 interactive_setup() {
-    echo -e "${BLUE}Matrix Server Interactive Setup${NC}"
-    echo "=================================="
+    echo -e "${BLUE}Matrix Server Interactive Setup with LiveKit RTC${NC}"
+    echo "======================================================"
     echo ""
     
     # Get domain information
@@ -117,6 +120,40 @@ interactive_setup() {
         exit 1
     fi
     
+    # Synapse shared secret
+    read -p "Enter Synapse shared secret (for RTC bridge): " -s SYNAPSE_SHARED_SECRET
+    echo ""
+    read -p "Confirm Synapse shared secret: " -s SYNAPSE_SHARED_SECRET_CONFIRM
+    echo ""
+    
+    if [ "$SYNAPSE_SHARED_SECRET" != "$SYNAPSE_SHARED_SECRET_CONFIRM" ]; then
+        echo -e "${RED}Secrets do not match. Please try again.${NC}"
+        exit 1
+    fi
+    
+    # TURN server configuration
+    read -p "Enter TURN server auth secret: " -s TURN_AUTH_SECRET
+    echo ""
+    read -p "Confirm TURN server auth secret: " -s TURN_AUTH_SECRET_CONFIRM
+    echo ""
+    
+    if [ "$TURN_AUTH_SECRET" != "$TURN_AUTH_SECRET_CONFIRM" ]; then
+        echo -e "${RED}Secrets do not match. Please try again.${NC}"
+        exit 1
+    fi
+    
+    # LiveKit configuration
+    read -p "Enter LiveKit API key: " LIVEKIT_KEY
+    read -p "Enter LiveKit API secret: " -s LIVEKIT_SECRET
+    echo ""
+    read -p "Confirm LiveKit API secret: " -s LIVEKIT_SECRET_CONFIRM
+    echo ""
+    
+    if [ "$LIVEKIT_SECRET" != "$LIVEKIT_SECRET_CONFIRM" ]; then
+        echo -e "${RED}Secrets do not match. Please try again.${NC}"
+        exit 1
+    fi
+    
     # Admin user
     read -p "Enter admin username: " ADMIN_USER
     read -p "Enter admin password: " -s ADMIN_PASSWORD
@@ -145,17 +182,6 @@ interactive_setup() {
         SSL_KEY_PATH=""
     fi
     
-    # TURN server configuration
-    read -p "Enter TURN server auth secret: " -s TURN_AUTH_SECRET
-    echo ""
-    read -p "Confirm TURN server auth secret: " -s TURN_AUTH_SECRET_CONFIRM
-    echo ""
-    
-    if [ "$TURN_AUTH_SECRET" != "$TURN_AUTH_SECRET_CONFIRM" ]; then
-        echo -e "${RED}Secrets do not match. Please try again.${NC}"
-        exit 1
-    fi
-    
     # Create .env file
     create_env_file
     
@@ -165,6 +191,16 @@ interactive_setup() {
     echo -e "${GREEN}Setup completed successfully!${NC}"
     echo ""
     echo "You can now start the services with: $0 --start"
+    echo ""
+    echo "Your Matrix server now includes:"
+    echo "  ✓ Synapse Matrix Server"
+    echo "  ✓ Element X Web Client"
+    echo "  ✓ LiveKit RTC Backend"
+    echo "  ✓ Matrix RTC Bridge"
+    echo "  ✓ CoTurn TURN Server"
+    echo "  ✓ PostgreSQL Database"
+    echo "  ✓ Redis Cache"
+    echo "  ✓ Nginx Reverse Proxy"
 }
 
 # Function to create .env file
@@ -185,6 +221,7 @@ POSTGRES_DB=${POSTGRES_DB}
 SYNAPSE_SERVER_NAME=${MATRIX_DOMAIN}
 SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
 SYNAPSE_REPORT_STATS=no
+SYNAPSE_SHARED_SECRET=${SYNAPSE_SHARED_SECRET}
 
 # Element X Configuration
 ELEMENT_X_SERVER=https://${MATRIX_DOMAIN}
@@ -192,6 +229,13 @@ ELEMENT_X_BASE_URL=https://${ELEMENT_DOMAIN}
 
 # Redis Configuration
 REDIS_PASSWORD=${REDIS_PASSWORD}
+
+# TURN Server Configuration
+TURN_AUTH_SECRET=${TURN_AUTH_SECRET}
+
+# LiveKit Configuration (Alternative RTC backend)
+LIVEKIT_KEY=${LIVEKIT_KEY}
+LIVEKIT_SECRET=${LIVEKIT_SECRET}
 
 # SSL Configuration
 SSL_ENABLED=${SSL_ENABLED}
@@ -210,6 +254,10 @@ REDIS_PORT=6379
 ELEMENT_X_PORT=80
 NGINX_PORT=80
 NGINX_SSL_PORT=443
+LIVEKIT_HTTP_PORT=7880
+LIVEKIT_WS_PORT=7881
+LIVEKIT_RTC_PORT=7882
+MATRIX_RTC_PORT=8080
 
 # Docker Network
 DOCKER_NETWORK=matrix-network
@@ -232,12 +280,17 @@ update_config_files() {
     sed -i "s/your_secure_password_here/${POSTGRES_PASSWORD}/g" synapse/config/homeserver.yaml
     sed -i "s/your_redis_password_here/${REDIS_PASSWORD}/g" synapse/config/homeserver.yaml
     sed -i "s/your_turn_auth_secret_here/${TURN_AUTH_SECRET}/g" synapse/config/homeserver.yaml
+    sed -i "s/your_synapse_shared_secret_here/${SYNAPSE_SHARED_SECRET}/g" synapse/config/homeserver.yaml
+    sed -i "s/your_livekit_key_here/${LIVEKIT_KEY}/g" synapse/config/homeserver.yaml
+    sed -i "s/your_livekit_secret_here/${LIVEKIT_SECRET}/g" synapse/config/homeserver.yaml
     sed -i "s/@admin:matrix.yourdomain.com/@${ADMIN_USER}:${MATRIX_DOMAIN}/g" synapse/config/homeserver.yaml
     
     # Update Element X configuration
     sed -i "s/matrix.yourdomain.com/${MATRIX_DOMAIN}/g" element/config/config.json
     sed -i "s/element.yourdomain.com/${ELEMENT_DOMAIN}/g" element/config/config.json
     sed -i "s/your_turn_auth_secret_here/${TURN_AUTH_SECRET}/g" element/config/config.json
+    sed -i "s/your_livekit_key_here/${LIVEKIT_KEY}/g" element/config/config.json
+    sed -i "s/your_livekit_secret_here/${LIVEKIT_SECRET}/g" element/config/config.json
     
     # Update Nginx configuration
     sed -i "s/matrix.yourdomain.com/${MATRIX_DOMAIN}/g" nginx/conf.d/matrix.conf
@@ -246,6 +299,12 @@ update_config_files() {
     # Update CoTurn configuration
     sed -i "s/matrix.yourdomain.com/${MATRIX_DOMAIN}/g" coturn/config/turnserver.conf
     sed -i "s/your_turn_auth_secret_here/${TURN_AUTH_SECRET}/g" coturn/config/turnserver.conf
+    
+    # Update LiveKit configuration
+    sed -i "s/matrix.yourdomain.com/${MATRIX_DOMAIN}/g" livekit/config/config.yaml
+    sed -i "s/your_turn_auth_secret_here/${TURN_AUTH_SECRET}/g" livekit/config/config.yaml
+    sed -i "s/your_livekit_key_here/${LIVEKIT_KEY}/g" livekit/config/config.yaml
+    sed -i "s/your_livekit_secret_here/${LIVEKIT_SECRET}/g" livekit/config/config.yaml
     
     echo -e "${GREEN}Configuration files updated.${NC}"
 }
@@ -259,6 +318,8 @@ start_services() {
     echo "You can access:"
     echo "  - Element X: http://${ELEMENT_DOMAIN}"
     echo "  - Synapse Admin API: http://${MATRIX_DOMAIN}:8008"
+    echo "  - LiveKit Dashboard: http://${MATRIX_DOMAIN}:7880"
+    echo "  - Matrix RTC Bridge: http://${MATRIX_DOMAIN}:8080"
     echo ""
     echo "To check the status: $0 --logs"
 }
@@ -309,7 +370,7 @@ create_backup() {
     docker exec matrix-postgres pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} > "${backup_dir}/postgres_backup.sql"
     
     # Backup configuration files
-    cp -r .env config/ synapse/config/ element/config/ nginx/conf.d/ coturn/config/ "$backup_dir/"
+    cp -r .env config/ synapse/config/ element/config/ nginx/conf.d/ coturn/config/ livekit/config/ "$backup_dir/"
     
     # Create tar archive
     tar -czvf "${backup_dir}.tar.gz" "$backup_dir"
@@ -369,9 +430,10 @@ edit_config() {
     echo "  3. element/config/config.json - Element X configuration"
     echo "  4. nginx/conf.d/matrix.conf - Nginx configuration"
     echo "  5. coturn/config/turnserver.conf - TURN server configuration"
+    echo "  6. livekit/config/config.yaml - LiveKit configuration"
     echo ""
     
-    read -p "Select file to edit (1-5): " choice
+    read -p "Select file to edit (1-6): " choice
     
     case $choice in
         1) nano .env ;;
@@ -379,6 +441,7 @@ edit_config() {
         3) nano element/config/config.json ;;
         4) nano nginx/conf.d/matrix.conf ;;
         5) nano coturn/config/turnserver.conf ;;
+        6) nano livekit/config/config.yaml ;;
         *) echo -e "${RED}Invalid choice.${NC}" ;;
     esac
 }
@@ -413,6 +476,12 @@ case "$1" in
         ;;
     --logs-nginx)
         show_logs nginx
+        ;;
+    --logs-livekit)
+        show_logs livekit
+        ;;
+    --logs-rtc)
+        show_logs matrix-rtc
         ;;
     --update)
         update_containers
