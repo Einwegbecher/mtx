@@ -1,0 +1,218 @@
+# Synapse Matrix Server Configuration
+# Generated for Element X with full call functionality
+
+server_name: "${SYNAPSE_SERVER_NAME}"
+
+# Database configuration
+pgsql:
+  host: postgres
+  port: ${POSTGRES_PORT}
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  database: ${POSTGRES_DB}
+  sslmode: disable
+
+# Redis configuration for caching
+redis:
+  enabled: true
+  host: redis
+  port: ${REDIS_PORT}
+  password: ${REDIS_PASSWORD}
+  db: 0
+
+# Listen configuration
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: true
+      - names: [media]
+        compress: true
+      - names: [static]
+        compress: true
+
+# Media storage
+media:
+  store_local: true
+  store_remote: false
+  max_file_size: 100M
+  max_upload_size: 100M
+  retention:
+    enabled: true
+    local_media:
+      max_age_days: 30
+    remote_media:
+      max_age_days: 30
+
+# Uploads
+uploads:
+  path: /uploads
+  max_file_size: 100M
+
+# Logging
+log:
+  level: INFO
+  config:
+    handlers:
+      file:
+        class: logging.handlers.RotatingFileHandler
+        formatter: colored
+        filename: /logs/synapse.log
+        maxBytes: 10485760
+        backupCount: 5
+        encoding: utf8
+    loggers:
+      synapse:
+        level: INFO
+        handlers: [file]
+      twisted:
+        level: INFO
+        handlers: [file]
+
+# Registration
+registration:
+  enabled: false
+  requires_token: false
+  token_3pid_validity: 1h
+  account_validity:
+    enabled: true
+    period: 7d
+    renew_at: 1d
+    enable_renewal: true
+
+# Admin users
+admins:
+  - user_id: "@${ADMIN_USER}:${MATRIX_DOMAIN}"
+
+# User consent
+user_consent:
+  version: 1
+  policies:
+    - name: Privacy Policy
+      version: 1.0
+      description: Our privacy policy
+      required: true
+      uri: "https://${MATRIX_DOMAIN}/privacy"
+
+# Room directory
+room_directory:
+  enabled: true
+  servers:
+    "${MATRIX_DOMAIN}":
+      third_party_invite: true
+
+# Federation
+federation:
+  enabled: true
+  federation_domain_whitelist:
+    - "${MATRIX_DOMAIN}"
+  federation_ip_range_whitelist:
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+    - "127.0.0.0/8"
+
+# Caching
+caches:
+  global:
+    enabled: true
+    backend: redis
+    redis:
+      host: redis
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      db: 1
+
+# Presence
+presence:
+  enabled: true
+
+# Typing notifications
+typing:
+  enabled: true
+
+# Read receipts
+read_receipts:
+  enabled: true
+
+# Search
+search:
+  enabled: true
+  all_archived: false
+
+# URL preview
+url_preview:
+  enabled: true
+  max_age: 86400
+  accept_language:
+    - en-US
+    - en
+
+# Metrics
+metrics:
+  enabled: false
+  port: 9000
+  bind_address: 0.0.0.0
+
+# App services (for bridges)
+app_services:
+  enabled: false
+
+# Push notifications
+push:
+  enabled: true
+  include_body: true
+  gateway:
+    enabled: false
+
+# Turn server configuration for Element Call
+turn:
+  uris:
+    - "turn:${MATRIX_DOMAIN}:3478"
+  shared_secret: your_turn_auth_secret_here
+  username: "${MATRIX_DOMAIN}"
+  password: your_turn_auth_secret_here
+  ttl: 3600
+
+# VoIP configuration
+voip:
+  enabled: true
+  turn:
+    uris:
+      - "turn:${MATRIX_DOMAIN}:3478"
+    shared_secret: your_turn_auth_secret_here
+    username: "${MATRIX_DOMAIN}"
+    password: your_turn_auth_secret_here
+    ttl: 3600
+
+# Rate limiting
+rate_limiting:
+  enabled: true
+  rc_window: 1000
+  rc_max_requests: 100
+  rc_message: "Too many requests"
+
+# Security
+security:
+  trusted_key_servers:
+    - server_name: "matrix.org"
+    - server_name: "vector.im"
+  key_validity_period: 1h
+  verify_signatures: true
+
+# Performance
+performance:
+  max_concurrent_requests: 100
+  max_concurrent_federation_requests: 50
+  max_concurrent_media_requests: 50
+
+# Experimental features
+experimental:
+  msc2409_dehydrated_devices: false
+  msc2716_knocking: false
+  msc2858_sliding_sync: false
+  msc3202_sliding_sync: false
+  msc3958_sliding_sync: false

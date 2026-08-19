@@ -1,0 +1,141 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://${MATRIX_DOMAIN}",
+      "server_name": "${MATRIX_DOMAIN}"
+    },
+    "m.identity_server": {
+      "base_url": "https://vector.im"
+    }
+  },
+  "default_theme": "light",
+  "default_language": "en",
+  "brand": "Element X",
+  "branding": {
+    "welcomeBackgroundUrl": "",
+    "authHeaderLogoUrl": ""
+  },
+  "features": {
+    "feature_voice_and_video": true,
+    "feature_screen_sharing": true,
+    "feature_knocking": false,
+    "feature_poll": true,
+    "feature_thread": true,
+    "feature_rich_text_editor": true,
+    "feature_custom_status": true,
+    "feature_custom_tags": true,
+    "feature_voice_message": true,
+    "feature_omnibar": true
+  },
+  "call": {
+    "enabled": true,
+    "video_calls": true,
+    "voice_calls": true,
+    "screen_sharing": true,
+    "jitsi": {
+      "enabled": false,
+      "prefer_server": false,
+      "widget": true,
+      "widget_domain": ""
+    },
+    "turn": {
+      "enabled": true,
+      "uris": ["turn:${MATRIX_DOMAIN}:3478"],
+      "username": "${MATRIX_DOMAIN}",
+      "password": "your_turn_auth_secret_here",
+      "ttl": 3600
+    }
+  },
+  "registration": {
+    "enabled": false,
+    "requires_token": false,
+    "token_3pid_validity": "1h"
+  },
+  "guest_access": {
+    "enabled": false
+  },
+  "e2e_encryption": {
+    "enabled": true,
+    "default": true,
+    "algorithm": "m.olm.v1.curve25519-aes-sha256"
+  },
+  "analytics": {
+    "enabled": false,
+    "amplitude": {
+      "enabled": false,
+      "api_key": ""
+    },
+    "sentry": {
+      "enabled": false,
+      "dsn": ""
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "push": {
+      "enabled": true,
+      "gateway": false
+    },
+    "email": {
+      "enabled": false
+    }
+  },
+  "media": {
+    "max_file_size": 104857600,
+    "max_upload_size": 104857600,
+    "max_image_size": 10485760,
+    "max_video_size": 104857600,
+    "max_audio_size": 104857600
+  },
+  "url_preview": {
+    "enabled": true,
+    "max_age": 86400,
+    "accept_language": ["en-US", "en"]
+  },
+  "room_directory": {
+    "enabled": true,
+    "servers": [
+      {
+        "server_name": "${MATRIX_DOMAIN}",
+        "third_party_invite": true
+      }
+    ]
+  },
+  "search": {
+    "enabled": true,
+    "all_archived": false
+  },
+  "presence": {
+    "enabled": true
+  },
+  "typing": {
+    "enabled": true
+  },
+  "read_receipts": {
+    "enabled": true
+  },
+  "security": {
+    "trusted_key_servers": [
+      {
+        "server_name": "matrix.org"
+      },
+      {
+        "server_name": "vector.im"
+      }
+    ],
+    "key_validity_period": "1h",
+    "verify_signatures": true
+  },
+  "performance": {
+    "max_concurrent_requests": 100,
+    "max_concurrent_federation_requests": 50,
+    "max_concurrent_media_requests": 50
+  },
+  "experimental": {
+    "msc2409_dehydrated_devices": false,
+    "msc2716_knocking": false,
+    "msc2858_sliding_sync": false,
+    "msc3202_sliding_sync": false,
+    "msc3958_sliding_sync": false
+  }
+}
