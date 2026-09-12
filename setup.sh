@@ -13,12 +13,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then
-    echo -e "${RED}Please do not run this script as root. Run it as a regular user.${NC}"
-    exit 1
-fi
-
 # Function to display help
 show_help() {
     echo "Usage: $0 [OPTION]"
