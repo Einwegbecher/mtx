@@ -13,6 +13,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Ensure script runs as root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${YELLOW}This script must be run as root. Re-running with sudo...${NC}"
+    exec sudo -E "$0" "$@"
+fi
+
 # Function to display help
 show_help() {
     echo "Usage: $0 [OPTION]"
